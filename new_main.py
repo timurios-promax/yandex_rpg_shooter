@@ -28,6 +28,7 @@ def load_image(name, color_key=None):
 pygame.init()
 screen_size = (400, 400)
 screen = pygame.display.set_mode(screen_size)
+speed = 3
 FPS = 50
 
 tile_images = {
@@ -54,11 +55,11 @@ class Player(pygame.sprite.Sprite):
         self.image = player_image
         self.rect = self.image.get_rect().move(
             tile_width * pos_x + 15, tile_height * pos_y + 5)
-        self.pos = (pos_x, pos_y)
+        self.pos = (tile_width * pos_x + 15, tile_height * pos_y + 5)
 
     def move(self, x, y):
-        camera.dx -= tile_width * (x - self.pos[0])
-        camera.dy -= tile_height * (y - self.pos[1])
+        camera.dx -= x - self.pos[0]
+        camera.dy -= y - self.pos[1]
         self.pos = (x, y)
         for sprite in sprite_group:
             camera.apply(sprite)
@@ -145,17 +146,29 @@ def generate_level(level):
 def move(hero, movement):
     x, y = hero.pos
     if movement == "up":
-        if y > 0 and level_map[y - 1][x] == ".":
-            hero.move(x, y - 1)
+        if y - speed > 0 and level_map[(y - speed) // tile_height][x // tile_width] == ".":
+            hero.move(x, y - speed)
+        elif y - speed > 0:
+            if y - speed > (y // tile_height - 1) * tile_height:
+                hero.move(x, y - speed)
     elif movement == "down":
-        if y < max_y - 1 and level_map[y + 1][x] == ".":
-            hero.move(x, y + 1)
+        if y < (max_y * tile_height - speed) and level_map[(y + speed) // tile_height][x // tile_width] == ".":
+            hero.move(x, y + speed)
+        elif y < (max_y * tile_height - speed):
+            if y + speed < (y // tile_height + 1) * tile_height:
+                hero.move(x, y + speed)
     elif movement == "left":
-        if x > 0 and level_map[y][x - 1] == ".":
-            hero.move(x - 1, y)
+        if x - speed > 0 and level_map[y // tile_height][(x - speed) // tile_width] == ".":
+            hero.move(x - speed, y)
+        elif x - speed > 0:
+            if x - speed > (x // tile_width - 1) * tile_width:
+                hero.move(x - speed, y)
     elif movement == "right":
-        if x < max_x - 1 and level_map[y][x + 1] == ".":
-            hero.move(x + 1, y)
+        if x < (max_x * tile_width - speed) and level_map[y // tile_height][(x + speed) // tile_width] == ".":
+            hero.move(x + speed, y)
+        elif x < (max_x * tile_width - speed):
+            if x + speed < (x // tile_width + 1) * tile_width:
+                hero.move(x + speed, y)
 
 
 start_screen()
@@ -163,19 +176,40 @@ camera = Camera()
 level_map = load_level(map_file)
 hero, max_x, max_y = generate_level(level_map)
 camera.update(hero)
+up_flag = 0
+down_flag = 0
+left_flag = 0
+right_flag = 0
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_UP:
-                move(hero, "up")
+                up_flag = 1
             elif event.key == pygame.K_DOWN:
-                move(hero, "down")
+                down_flag = 1
             elif event.key == pygame.K_LEFT:
-                move(hero, "left")
+                left_flag = 1
             elif event.key == pygame.K_RIGHT:
-                move(hero, "right")
+                right_flag = 1
+        elif event.type == pygame.KEYUP:
+            if event.key == pygame.K_UP:
+                up_flag = 0
+            if event.key == pygame.K_DOWN:
+                down_flag = 0
+            if event.key == pygame.K_LEFT:
+                left_flag = 0
+            if event.key == pygame.K_RIGHT:
+                right_flag = 0
+    if up_flag:
+        move(hero, "up")
+    if down_flag:
+        move(hero, "down")
+    if left_flag:
+        move(hero, "left")
+    if right_flag:
+        move(hero, "right")
     screen.fill(pygame.Color("black"))
     sprite_group.draw(screen)
     hero_group.draw(screen)
