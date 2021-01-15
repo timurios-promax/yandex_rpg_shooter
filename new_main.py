@@ -92,9 +92,9 @@ def terminate():
 
 
 def start_screen():
-    intro_text = ["Перемещение героя", "",
+    intro_text = ["AAA-проект", "",
                   "",
-                  "Камера"]
+                  "4Д-шутер от 5-го лица"]
 
     fon = pygame.transform.scale(load_image('fon.jpg'), screen_size)
     screen.blit(fon, (0, 0))
@@ -149,7 +149,7 @@ def move(hero, movement):
         if y - speed > 0 and level_map[(y - speed) // tile_height][x // tile_width] == ".":
             hero.move(x, y - speed)
         elif y - speed > 0:
-            if y - speed > (y // tile_height - 1) * tile_height:
+            if y - speed > (y // tile_height) * tile_height:
                 hero.move(x, y - speed)
     elif movement == "down":
         if y < (max_y * tile_height - speed) and level_map[(y + speed) // tile_height][x // tile_width] == ".":
@@ -161,7 +161,7 @@ def move(hero, movement):
         if x - speed > 0 and level_map[y // tile_height][(x - speed) // tile_width] == ".":
             hero.move(x - speed, y)
         elif x - speed > 0:
-            if x - speed > (x // tile_width - 1) * tile_width:
+            if x - speed > (x // tile_width) * tile_width:
                 hero.move(x - speed, y)
     elif movement == "right":
         if x < (max_x * tile_width - speed) and level_map[y // tile_height][(x + speed) // tile_width] == ".":
