@@ -38,8 +38,6 @@ tile_images = {
 player_image = load_image('mar.png')
 
 tile_width = tile_height = 50
-walls = pygame.sprite.Group()
-movable_things = pygame.sprite.Group()
 
 
 class Tile(pygame.sprite.Sprite):
@@ -56,7 +54,6 @@ class Tile(pygame.sprite.Sprite):
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
         super().__init__(hero_group)
-        self.add(movable_things)
         self.image = player_image
         self.rect = self.image.get_rect().move(
             tile_width * pos_x + 15, tile_height * pos_y + 5)
@@ -84,7 +81,7 @@ class Camera:
         self.dy = 0
 
 
-class Bullet(pygame.sprite.Sprite):
+class Bullet:
     def __init__(self, start_pos, finish_pos, life_count=5, bullet_speed=20):
         self.life_count = life_count
         self.finish_pos = finish_pos
@@ -115,6 +112,7 @@ running = True
 clock = pygame.time.Clock()
 sprite_group = pygame.sprite.Group()
 hero_group = pygame.sprite.Group()
+walls = pygame.sprite.Group()
 
 
 def terminate():
@@ -219,21 +217,6 @@ def move(hero, movement):
 
 bullet_speed = 1
 
-def shoot(shoot_x, shoot_y):
-    x1, y1 = hero.pos
-    x_speed, y_speed = abs(shoot_x - x1) / bullet_speed, abs(shoot_y - y1) // bullet_speed
-    if shoot_x > x1:
-        x1 += 1
-    elif shoot_x < x1:
-        x1 -= 1
-    if shoot_y > y1:
-        y1 += 1
-    elif shoot_y < y1:
-        y1 -= 1
-    circle_pos = (x1, y1)
-    pygame.draw.circle(screen, pygame.Color('red'), circle_pos, 2, 2)
-
-
 start_screen()
 camera = Camera()
 level_map = load_level(map_file)
@@ -243,6 +226,7 @@ up_flag = 0
 down_flag = 0
 left_flag = 0
 right_flag = 0
+bullet_flag = 0
 bullets = []
 while running:
     for event in pygame.event.get():
@@ -268,7 +252,11 @@ while running:
                 right_flag = 0
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
-                bullets.append(Bullet(hero.pos, event.pos))
+                bullet_flag = 1
+                mouse_pos = event.pos
+        if event.type == pygame.MOUSEBUTTONUP:
+            if event.button == 1:
+                bullet_flag = 0
     if up_flag:
         move(hero, "up")
     if down_flag:
@@ -277,14 +265,13 @@ while running:
         move(hero, "left")
     if right_flag:
         move(hero, "right")
+    if bullet_flag:
+        bullets.append(Bullet(hero.pos, mouse_pos))
     screen.fill(pygame.Color("black"))
     sprite_group.draw(screen)
     hero_group.draw(screen)
-    for i in range(len(bullets)):
-        bullets[i].bullet_move()
-        if bullets[i].life_count == 0:
-            del bullets[i]
-            print(bullets)
+    for i in bullets:
+        i.bullet_move()
     clock.tick(FPS)
     pygame.display.flip()
 pygame.quit()
