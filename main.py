@@ -36,6 +36,7 @@ tile_images = {
     'empty': load_image('grass.png')
 }
 player_image = load_image('mar.png')
+bullet_image = load_image('bullet.png')
 
 tile_width = tile_height = 50
 
@@ -49,7 +50,6 @@ class Tile(pygame.sprite.Sprite):
         self.rect = self.image.get_rect().move(
             tile_width * pos_x, tile_height * pos_y)
         self.abs_pos = (self.rect.x, self.rect.y)
-
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
@@ -81,12 +81,17 @@ class Camera:
         self.dy = 0
 
 
-class Bullet:
+class Bullet(pygame.sprite.Sprite):
     def __init__(self, start_pos, finish_pos, life_count=5, bullet_speed=20):
+        super().__init__(sprite_group)
+        self.start_x, self.start_y = start_pos
+        self.image = bullet_image
+        self.rect = self.image.get_rect().move(
+            self.start_x, self.start_y)
+        self.abs_pos = (self.rect.x, self.rect.y)
         self.life_count = life_count
         self.finish_pos = finish_pos
         self.finish_x, self.finish_y = finish_pos
-        self.start_x, self.start_y = start_pos
         self.x_speed, self.y_speed = (self.finish_x - self.start_x) / bullet_speed, (self.finish_y - self.start_y) / bullet_speed
 
     def bullet_move(self):
@@ -98,12 +103,6 @@ class Bullet:
             self.start_y += self.y_speed
         elif self.finish_y < self.start_y:
             self.start_y -= 1
-        circle_pos = (self.start_x, self.start_y)
-        pygame.draw.circle(screen, pygame.Color('red'), circle_pos, 2, 2)
-        if circle_pos == self.finish_pos:
-            self.life_count = 0
-        if self.finish_x < self.start_x + self.x_speed or self.finish_y < self.start_y + self.y_speed:
-            self.life_count = 0
         self.life_count -= 1
 
 
@@ -257,6 +256,9 @@ while running:
         if event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1:
                 bullet_flag = 0
+        if event.type == pygame.MOUSEMOTION:
+            mouse_pos = event.pos
+
     if up_flag:
         move(hero, "up")
     if down_flag:
@@ -266,7 +268,8 @@ while running:
     if right_flag:
         move(hero, "right")
     if bullet_flag:
-        bullets.append(Bullet(hero.pos, mouse_pos))
+        bullets.append(Bullet((screen_size[0] / 2, screen_size[1] / 2), mouse_pos))
+
     screen.fill(pygame.Color("black"))
     sprite_group.draw(screen)
     hero_group.draw(screen)
