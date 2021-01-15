@@ -19,7 +19,7 @@ def load_image(name, color_key=None):
         raise SystemExit(message)
     image = image.convert_alpha()
     if color_key is not None:
-        if color_key is -1:
+        if color_key == -1:
             color_key = image.get_at((0, 0))
         image.set_colorkey(color_key)
     return image
@@ -28,6 +28,7 @@ def load_image(name, color_key=None):
 pygame.init()
 screen_size = (400, 400)
 screen = pygame.display.set_mode(screen_size)
+speed = 3
 FPS = 50
 
 tile_images = {
@@ -42,6 +43,8 @@ tile_width = tile_height = 50
 class Tile(pygame.sprite.Sprite):
     def __init__(self, tile_type, pos_x, pos_y):
         super().__init__(sprite_group)
+        if tile_type == 'wall':
+            self.add(walls)
         self.image = tile_images[tile_type]
         self.rect = self.image.get_rect().move(
             tile_width * pos_x, tile_height * pos_y)
@@ -54,11 +57,11 @@ class Player(pygame.sprite.Sprite):
         self.image = player_image
         self.rect = self.image.get_rect().move(
             tile_width * pos_x + 15, tile_height * pos_y + 5)
-        self.pos = (pos_x, pos_y)
+        self.pos = (tile_width * pos_x + 15, tile_height * pos_y + 5)
 
     def move(self, x, y):
-        camera.dx -= tile_width * (x - self.pos[0])
-        camera.dy -= tile_height * (y - self.pos[1])
+        camera.dx -= x - self.pos[0]
+        camera.dy -= y - self.pos[1]
         self.pos = (x, y)
         for sprite in sprite_group:
             camera.apply(sprite)
@@ -78,11 +81,38 @@ class Camera:
         self.dy = 0
 
 
+class Bullet:
+    def __init__(self, start_pos, finish_pos, life_count=5, bullet_speed=20):
+        self.life_count = life_count
+        self.finish_pos = finish_pos
+        self.finish_x, self.finish_y = finish_pos
+        self.start_x, self.start_y = start_pos
+        self.x_speed, self.y_speed = (self.finish_x - self.start_x) / bullet_speed, (self.finish_y - self.start_y) / bullet_speed
+
+    def bullet_move(self):
+        if self.finish_x > self.start_x:
+            self.start_x += self.x_speed
+        elif self.finish_x < self.start_x:
+            self.start_x -= 1
+        if self.finish_y > self.start_y:
+            self.start_y += self.y_speed
+        elif self.finish_y < self.start_y:
+            self.start_y -= 1
+        circle_pos = (self.start_x, self.start_y)
+        pygame.draw.circle(screen, pygame.Color('red'), circle_pos, 2, 2)
+        if circle_pos == self.finish_pos:
+            self.life_count = 0
+        if self.finish_x < self.start_x + self.x_speed or self.finish_y < self.start_y + self.y_speed:
+            self.life_count = 0
+
+
+
 player = None
 running = True
 clock = pygame.time.Clock()
 sprite_group = pygame.sprite.Group()
 hero_group = pygame.sprite.Group()
+walls = pygame.sprite.Group()
 
 
 def terminate():
@@ -141,44 +171,116 @@ def generate_level(level):
                 level[y][x] = "."
     return new_player, x, y
 
+def check(y1, x1):
+    if level_map[y1 // tile_height][x1 // tile_width] == ".":
+        return True
+
 
 def move(hero, movement):
     x, y = hero.pos
     if movement == "up":
-        if y > 0 and level_map[y - 1][x] == ".":
-            hero.move(x, y - 1)
-    elif movement == "down":
-        if y < max_y - 1 and level_map[y + 1][x] == ".":
-            hero.move(x, y + 1)
-    elif movement == "left":
-        if x > 0 and level_map[y][x - 1] == ".":
-            hero.move(x - 1, y)
-    elif movement == "right":
-        if x < max_x - 1 and level_map[y][x + 1] == ".":
-            hero.move(x + 1, y)
+        if y - speed > 0:
+            if not pygame.sprite.spritecollideany(hero, walls):
+                hero.move(x, y - speed)
+                k = 0
+                while pygame.sprite.spritecollideany(hero, walls):
+                    hero.move(x, y + k)
+                    k += 1
 
+    elif movement == "down":
+        if y + speed < len(level_map) * tile_height:
+            if not pygame.sprite.spritecollideany(hero, walls):
+                hero.move(x, y + speed)
+                k = 0
+                while pygame.sprite.spritecollideany(hero, walls):
+                    hero.move(x, y - k)
+                    k += 1
+
+    elif movement == "left":
+        if x - speed > 0:
+            if not pygame.sprite.spritecollideany(hero, walls):
+                if not pygame.sprite.spritecollideany(hero, walls):
+                    hero.move(x - speed, y)
+                    k = 0
+                    while pygame.sprite.spritecollideany(hero, walls):
+                        hero.move(x + k, y)
+                        k += 1
+
+    elif movement == "right":
+        if x + speed < len(level_map[1]) * tile_width:
+            if not pygame.sprite.spritecollideany(hero, walls):
+                hero.move(x + speed, y)
+                k = 0
+                while pygame.sprite.spritecollideany(hero, walls):
+                    hero.move(x - k, y)
+                    k += 1
+
+bullet_speed = 1
 
 start_screen()
 camera = Camera()
 level_map = load_level(map_file)
 hero, max_x, max_y = generate_level(level_map)
 camera.update(hero)
+up_flag = 0
+down_flag = 0
+left_flag = 0
+right_flag = 0
+bullet_flag = 0
+bullets = []
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        elif event.type == pygame.KEYDOWN:
+        if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_UP:
-                move(hero, "up")
+                up_flag = 1
             elif event.key == pygame.K_DOWN:
-                move(hero, "down")
+                down_flag = 1
             elif event.key == pygame.K_LEFT:
-                move(hero, "left")
+                left_flag = 1
             elif event.key == pygame.K_RIGHT:
-                move(hero, "right")
+                right_flag = 1
+        if event.type == pygame.KEYUP:
+            if event.key == pygame.K_UP:
+                up_flag = 0
+            if event.key == pygame.K_DOWN:
+                down_flag = 0
+            if event.key == pygame.K_LEFT:
+                left_flag = 0
+            if event.key == pygame.K_RIGHT:
+                right_flag = 0
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:
+                bullet_flag = 1
+                mouse_pos = event.pos
+        if event.type == pygame.MOUSEBUTTONUP:
+            if event.button == 1:
+                bullet_flag = 0
+        if event.type == pygame.MOUSEMOTION:
+            mouse_pos = event.pos
+
+    if up_flag:
+        move(hero, "up")
+    if down_flag:
+        move(hero, "down")
+    if left_flag:
+        move(hero, "left")
+    if right_flag:
+        move(hero, "right")
+    if bullet_flag:
+        bullets.append(Bullet(hero.pos, mouse_pos))
+
     screen.fill(pygame.Color("black"))
     sprite_group.draw(screen)
     hero_group.draw(screen)
+    i = 0
+    while i < len(bullets):
+        bullets[i].bullet_move()
+        if bullets[i].life_count == 0:
+            del bullets[i]
+            i -= 1
+        i += 1
     clock.tick(FPS)
     pygame.display.flip()
 pygame.quit()
