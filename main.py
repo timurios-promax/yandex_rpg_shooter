@@ -82,13 +82,13 @@ class Camera:
 
 
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self, start_pos, finish_pos, life_count=5, bullet_speed=20):
+    def __init__(self, start_pos, finish_pos, life_count=50, bullet_speed=100):
         super().__init__(sprite_group)
         self.start_x, self.start_y = start_pos
         self.image = bullet_image
         self.rect = self.image.get_rect().move(
             self.start_x, self.start_y)
-        self.abs_pos = (self.rect.x, self.rect.y)
+        self.abs_pos = [self.rect.x, self.rect.y]
         self.life_count = life_count
         self.finish_pos = finish_pos
         self.finish_x, self.finish_y = finish_pos
@@ -96,14 +96,14 @@ class Bullet(pygame.sprite.Sprite):
 
     def bullet_move(self):
         if self.finish_x > self.start_x:
-            self.start_x += self.x_speed
+            self.abs_pos[0] += self.x_speed
         elif self.finish_x < self.start_x:
-            self.start_x -= 1
+            self.abs_pos[0] -= self.x_speed
         if self.finish_y > self.start_y:
-            self.start_y += self.y_speed
+            self.abs_pos[1] += self.y_speed
         elif self.finish_y < self.start_y:
-            self.start_y -= 1
-        self.life_count -= 1
+            self.abs_pos[1] -= self.y_speed
+
 
 
 player = None
@@ -227,6 +227,8 @@ left_flag = 0
 right_flag = 0
 bullet_flag = 0
 bullets = []
+kol_bul = 30
+realoading = 0
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -267,14 +269,28 @@ while running:
         move(hero, "left")
     if right_flag:
         move(hero, "right")
+
     if bullet_flag:
-        bullets.append(Bullet((screen_size[0] / 2, screen_size[1] / 2), mouse_pos))
+        if kol_bul > 0:
+            bullets.append(Bullet(hero.pos, mouse_pos))
+            kol_bul -= 1
+        else:
+            realoading = 10
+
+    if realoading == 0:
+        kol_bul = 30
 
     screen.fill(pygame.Color("black"))
     sprite_group.draw(screen)
     hero_group.draw(screen)
-    for i in bullets:
-        i.bullet_move()
+    i = 0
+    while i < len(bullets):
+        bullets[i].bullet_move()
+        if bullets[i].life_count == 0:
+            del bullets[i]
+            i -= 1
+        i += 1
     clock.tick(FPS)
+    realoading -= 1
     pygame.display.flip()
 pygame.quit()
