@@ -32,11 +32,11 @@ speed = 3
 FPS = 50
 
 tile_images = {
-    'wall': load_image('box.png'),
-    'empty': load_image('grass.png')
+    'wall': load_image('walls.jpg'),
+    'empty': load_image('grass.jpg')
 }
 player_image = load_image('down.png')
-bullet_image = load_image('bullet1.png')
+bullet_image = load_image('bullet.png')
 
 tile_width = tile_height = 50
 
