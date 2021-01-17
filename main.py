@@ -2,7 +2,7 @@ import pygame
 import os
 import sys
 import argparse
-
+import random
 
 parser = argparse.ArgumentParser()
 parser.add_argument("map", type=str, nargs="?", default="map.map")
@@ -26,7 +26,7 @@ def load_image(name, color_key=None):
 
 
 pygame.init()
-screen_size = (400, 400)
+screen_size = [400, 400]
 screen = pygame.display.set_mode(screen_size)
 speed = 3
 FPS = 50
@@ -35,8 +35,8 @@ tile_images = {
     'wall': load_image('box.png'),
     'empty': load_image('grass.png')
 }
-player_image = load_image('mar.png')
-bullet_image = load_image('bullet.png')
+player_image = load_image('down.png')
+bullet_image = load_image('bullet1.png')
 
 tile_width = tile_height = 50
 
@@ -82,27 +82,32 @@ class Camera:
 
 
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self, start_pos, finish_pos, life_count=50, bullet_speed=100):
+    def __init__(self, start_pos, finish_pos, life_count=500, bullet_speed=100):
         super().__init__(sprite_group)
         self.start_x, self.start_y = start_pos
+        self.abs_pos = [self.start_x, self.start_y]
         self.image = bullet_image
         self.rect = self.image.get_rect().move(
             self.start_x, self.start_y)
-        self.abs_pos = [self.rect.x, self.rect.y]
         self.life_count = life_count
         self.finish_pos = finish_pos
         self.finish_x, self.finish_y = finish_pos
+        self.finish_x += hero.pos[0]
+        self.finish_x -= screen_size[0] / 2 + 15
+        self.finish_y += hero.pos[1]
+        self.finish_y -= screen_size[1] / 2 + 5
         self.x_speed, self.y_speed = (self.finish_x - self.start_x) / bullet_speed, (self.finish_y - self.start_y) / bullet_speed
 
     def bullet_move(self):
-        if self.finish_x > self.start_x:
-            self.abs_pos[0] += self.x_speed
-        elif self.finish_x < self.start_x:
-            self.abs_pos[0] -= self.x_speed
-        if self.finish_y > self.start_y:
-            self.abs_pos[1] += self.y_speed
-        elif self.finish_y < self.start_y:
-            self.abs_pos[1] -= self.y_speed
+        self.abs_pos[0] += self.x_speed
+        self.abs_pos[1] += self.y_speed
+        if pygame.sprite.spritecollideany(self, walls):
+            self.kill()
+        for sprite in sprite_group:
+            camera.apply(sprite)
+        self.life_count -= 1
+        if self.life_count <= 0:
+            self.kill()
 
 
 
@@ -182,6 +187,7 @@ def move(hero, movement):
             if not pygame.sprite.spritecollideany(hero, walls):
                 hero.move(x, y - speed)
                 k = 0
+                hero.image = load_image('up.png')
                 while pygame.sprite.spritecollideany(hero, walls):
                     hero.move(x, y + k)
                     k += 1
@@ -191,6 +197,7 @@ def move(hero, movement):
             if not pygame.sprite.spritecollideany(hero, walls):
                 hero.move(x, y + speed)
                 k = 0
+                hero.image = load_image('down.png')
                 while pygame.sprite.spritecollideany(hero, walls):
                     hero.move(x, y - k)
                     k += 1
@@ -201,6 +208,7 @@ def move(hero, movement):
                 if not pygame.sprite.spritecollideany(hero, walls):
                     hero.move(x - speed, y)
                     k = 0
+                    hero.image = load_image('left.png')
                     while pygame.sprite.spritecollideany(hero, walls):
                         hero.move(x + k, y)
                         k += 1
@@ -210,15 +218,28 @@ def move(hero, movement):
             if not pygame.sprite.spritecollideany(hero, walls):
                 hero.move(x + speed, y)
                 k = 0
+                hero.image = load_image('right.png')
                 while pygame.sprite.spritecollideany(hero, walls):
                     hero.move(x - k, y)
                     k += 1
+
+# levels = [[str(random.randint(0, 3)) for i in range(3)] for j in range(3)]
+level_map = load_level(map_file)
+# for i in range(len(levels)):
+    # for j in range(len(levels[0])):
+        # map = load_level('map' + str(i) + str(j) + levels[i][j])
+        # for k in range(len(map)):
+            # for t in range(len(map[0])):
+                # if  i < 1 or j < 1:
+                    # level_map[i * 3 + k][j * 3 + t] = map[k][t]
+                # else:
+                    # pass
+
 
 bullet_speed = 1
 
 start_screen()
 camera = Camera()
-level_map = load_level(map_file)
 hero, max_x, max_y = generate_level(level_map)
 camera.update(hero)
 up_flag = 0
@@ -229,6 +250,7 @@ bullet_flag = 0
 bullets = []
 kol_bul = 30
 realoading = 0
+weapon_speed = 5
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -271,26 +293,31 @@ while running:
         move(hero, "right")
 
     if bullet_flag:
-        if kol_bul > 0:
+        if kol_bul > 0 and weapon_speed == 0:
             bullets.append(Bullet(hero.pos, mouse_pos))
             kol_bul -= 1
+            weapon_speed = 5
         else:
             realoading = 10
+        weapon_speed -= 1
 
     if realoading == 0:
         kol_bul = 30
+        realoading = 10
 
     screen.fill(pygame.Color("black"))
-    sprite_group.draw(screen)
-    hero_group.draw(screen)
     i = 0
     while i < len(bullets):
         bullets[i].bullet_move()
-        if bullets[i].life_count == 0:
+        if bullets[i].life_count < 0:
             del bullets[i]
             i -= 1
         i += 1
+    sprite_group.draw(screen)
+    hero_group.draw(screen)
     clock.tick(FPS)
-    realoading -= 1
+    if kol_bul == 0:
+        realoading -= 1
+        weapon_speed = 5
     pygame.display.flip()
 pygame.quit()
