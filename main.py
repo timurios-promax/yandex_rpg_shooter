@@ -2,7 +2,7 @@ import pygame
 import os
 import sys
 import argparse
-
+import random
 
 parser = argparse.ArgumentParser()
 parser.add_argument("map", type=str, nargs="?", default="map.map")
@@ -36,7 +36,7 @@ tile_images = {
     'empty': load_image('grass.png')
 }
 player_image = load_image('mar.png')
-bullet_image = load_image('bullet.png')
+bullet_image = load_image('bullet1.png')
 
 tile_width = tile_height = 50
 
@@ -217,11 +217,23 @@ def move(hero, movement):
                     hero.move(x - k, y)
                     k += 1
 
+levels = [[str(random.randint(0, 3)) for i in range(3)] for j in range(3)]
+level_map = load_level(map_file)
+for i in range(len(levels)):
+    for j in range(len(levels[0])):
+        map = load_level('map' + str(i) + str(j) + levels[i][j])
+        for k in range(len(map)):
+            for t in range(len(map[0])):
+                if  i < 1 or j < 1:
+                    level_map[i * 3 + k][j * 3 + t] = map[k][t]
+                else:
+                    pass
+
+
 bullet_speed = 1
 
 start_screen()
 camera = Camera()
-level_map = load_level(map_file)
 hero, max_x, max_y = generate_level(level_map)
 camera.update(hero)
 up_flag = 0
