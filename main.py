@@ -48,6 +48,9 @@ weapon_speed = 5
 old_time = 0
 FPS = 50
 radius = 200
+coins = list()
+step_state = 0
+score = 0
 
 tile_images = {
     'wall': load_image('walls.jpg'),
@@ -59,7 +62,18 @@ pygame.display.set_icon(icon)
 player_image = load_image('down.png')
 enemy_image = load_image('down_light.png')
 bullet_image = load_image('dark_fireball.png')
+enemy_bullet_image = load_image('light_blast.png')
+coin_image = load_image('coin.png')
 
+bullet_sound = pygame.mixer.Sound(r'sounds\fireball.wav')
+enemy_damge_sound = pygame.mixer.Sound(r'sounds\enemydamage.wav')
+pygame.mixer.music.load(r'sounds\fonmusic.wav')
+pygame.mixer.music.play()
+pygame.mixer.music.set_volume(0.3)
+step_sound = [pygame.mixer.Sound(r'sounds\step' + str(i) + '.wav') for i in range(1, 10)]
+coin_sound = pygame.mixer.Sound(r'sounds\coin.wav')
+enemy_bullet_sound = pygame.mixer.Sound(r'sounds\electric.wav')
+damage_sound = pygame.mixer.Sound(r'sounds\herodamage.wav')
 
 class Tile(pygame.sprite.Sprite):
     def __init__(self, tile_type, pos_x, pos_y):
@@ -107,6 +121,33 @@ class Player(pygame.sprite.Sprite):
         text_y = 340
         screen.blit(text, (text_x, text_y))
 
+        font = pygame.font.Font(None, 30)
+        text = font.render(str(score).rjust(6, '0'), True, pygame.Color(255, 255, 255, 255))
+        text_x = 320
+        text_y = 10
+        screen.blit(text, (text_x, text_y))
+
+
+class Coin(pygame.sprite.Sprite):
+    def __init__(self, pos_x, pos_y):
+        super().__init__(sprite_group)
+        self.add(coins_group)
+        self.image = coin_image
+        self.health = 100
+        self.rect = self.image.get_rect().move(
+            tile_width * pos_x + 15, tile_height * pos_y + 15)
+        self.abs_pos = (self.rect.x, self.rect.y)
+        self.pos = (tile_width * pos_x + 15, tile_height * pos_y + 5)
+
+    def taken(self):
+        global score
+        if pygame.sprite.spritecollideany(self, hero_group):
+            coin_sound.play()
+            score += 10
+            self.kill()
+            return True
+        return False
+
 
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
@@ -127,7 +168,9 @@ class Enemy(pygame.sprite.Sprite):
             camera.apply(sprite)
 
     def show_health(self):
+        global score
         if self.health <= 0:
+            score += 100
             self.kill()
             return True
         font = pygame.font.Font(None, 20)
@@ -136,6 +179,7 @@ class Enemy(pygame.sprite.Sprite):
         text_y = self.pos[1] - 10 + camera.dy
         screen.blit(text, (text_x, text_y))
         if pygame.sprite.spritecollideany(self, bullet_group):
+            enemy_damge_sound.play()
             self.health -= 20
         return False
 
@@ -158,6 +202,7 @@ class Bullet(pygame.sprite.Sprite):
     def __init__(self, start_pos, finish_pos, life_count=25, bullet_time=15):
         super().__init__(sprite_group)
         self.add(bullet_group)
+        bullet_sound.play()
         self.start_x, self.start_y = start_pos
         self.start_y += 5
         self.abs_pos = [self.start_x, self.start_y]
@@ -191,21 +236,22 @@ class Bullet(pygame.sprite.Sprite):
 
 
 class EnemyBullet(pygame.sprite.Sprite):
-    def __init__(self, start_pos, finish_pos, life_count=25, bullet_time=15):
+    def __init__(self, start_pos, finish_pos, enemy, life_count=25, bullet_time=15):
         super().__init__(sprite_group)
         self.add(enemy_bullet_group)
+        enemy_bullet_sound.play()
         self.start_x, self.start_y = start_pos
         self.start_y += 5
         self.abs_pos = [self.start_x, self.start_y]
-        self.image = bullet_image
+        self.image = enemy_bullet_image
         self.rect = self.image.get_rect().move(
             self.start_x, self.start_y)
         self.life_count = life_count
         self.finish_pos = finish_pos
         self.finish_x, self.finish_y = finish_pos
-        self.finish_x += hero.pos[0]
+        self.finish_x += enemy.pos[0]
         self.finish_x -= (50 * 3 + 15)
-        self.finish_y += hero.pos[1]
+        self.finish_y += enemy.pos[1]
         self.finish_y -= (50 * 3 + 5)
         self.x_speed, self.y_speed = (self.finish_x - self.start_x) / bullet_time, (self.finish_y - self.start_y) / bullet_time
 
@@ -216,6 +262,7 @@ class EnemyBullet(pygame.sprite.Sprite):
             self.kill()
             return
         if pygame.sprite.spritecollideany(self, hero_group):
+            damage_sound.play()
             hero.health -= 20
             self.kill()
             return
@@ -237,6 +284,7 @@ enemy_group = pygame.sprite.Group()
 walls = pygame.sprite.Group()
 bullet_group = pygame.sprite.Group()
 enemy_bullet_group = pygame.sprite.Group()
+coins_group = pygame.sprite.Group()
 
 
 def terminate():
@@ -310,21 +358,19 @@ def end_screen():
         clock.tick(FPS)
 
 
-
 def load_level(filename):
     filename = "maps/" + filename
-    level_map = []
     with open(filename, 'r') as mapFile:
         level_map = [line.strip() for line in mapFile]
     for i in range(len(level_map)):
         level_map[i] = str(level_map[i])
-    max_width = len(level_map[0])
     return level_map
 
 
 def generate_level(level):
     new_player, x, y = None, None, None
     enemies = list()
+    global coins
     for y in range(len(level)):
         for x in range(len(level[y])):
             if level[y][x] == '.':
@@ -345,6 +391,12 @@ def generate_level(level):
                 d = list(level[y])
                 d[x] = "."
                 level[y] = d
+            elif level[y][x] == '*':
+                Tile('empty', x, y)
+                coins.append(Coin(x, y))
+                d = list(level[y])
+                d[x] = "."
+                level[y] = d
     return new_player, x, y, enemies
 
 
@@ -354,7 +406,10 @@ def check(y1, x1):
 
 
 def move(hero, movement):
+    global step_state
     x, y = hero.pos
+    step_sound[step_state].play()
+    step_state = (step_state + 1) % 9
     if movement == "up":
         if y - speed > 0:
             if not pygame.sprite.spritecollideany(hero, walls):
@@ -413,6 +468,8 @@ for i in range(len(levels)):
                     rand = random.randint(0, 20)
                     if rand == 10 and map[k][t] != '#':
                         d[j * 8 + t + j * 4] = '$'
+                    elif rand == 20 and map[k][t] != '#':
+                        d[j * 8 + t + j * 4] = '*'
                     else:
                         d[j * 8 + t + j * 4] = map[k][t]
                     level_map[i * 8 + k + i * 4] = ''.join(d)
@@ -493,16 +550,6 @@ while running:
             del bullets[i]
             i -= 1
         i += 1
-
-    sprite_group.draw(screen)
-    hero_group.draw(screen)
-    hero.show_status()
-    enemy_group.draw(screen)
-    for enemy in enemy_list:
-        if enemy.pos[0] - radius < hero.pos[0] and enemy.pos[0] + radius > hero.pos[0]:
-            if enemy.pos[1] - radius < hero.pos[1] and enemy.pos[1] + radius > hero.pos[1]:
-                bullets.append(EnemyBullet(enemy.pos, hero.pos, life_count, bullet_time))
-
     i = 0
     while i < len(enemy_list):
         k = enemy_list[i].show_health()
@@ -510,10 +557,23 @@ while running:
             del enemy_list[i]
             i -= 1
         i += 1
-    if len(enemy_list) == 0:
-        pygame.quit()
+    i = 0
+    while i < len(coins):
+        k = coins[i].taken()
+        if k:
+            del coins[i]
+            i -= 1
+        i += 1
 
-    if hero.health <= 0:
+    sprite_group.draw(screen)
+    hero_group.draw(screen)
+    hero.show_status()
+    enemy_group.draw(screen)
+    for enemy in enemy_list:
+        if ((hero.pos[0] - enemy.pos[0]) ** 2 + (hero.pos[1] - enemy.pos[1]) ** 2) ** 0.5 <= radius:
+            bullets.append(EnemyBullet(enemy.pos, hero.pos, enemy, life_count, bullet_time))
+
+    if len(enemy_list) == 0 or hero.health <= 0:
         end_screen()
 
     clock.tick(30)
