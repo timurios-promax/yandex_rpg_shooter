@@ -400,12 +400,9 @@ while running:
         k = enemy_list[i].show_health()
         if k:
             del enemy_list[i]
-    for i in range(len(enemy_list)):
-        k = enemy_list[i].show_health()
-        if k:
-            del enemy_list[i]
             i -= 1
         i += 1
+
     if len(enemy_list) == 0:
         pygame.quit()
     clock.tick(30)
