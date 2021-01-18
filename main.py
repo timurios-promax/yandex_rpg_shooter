@@ -2,7 +2,7 @@ import pygame
 import os
 import sys
 import argparse
-
+import random
 
 parser = argparse.ArgumentParser()
 parser.add_argument("map", type=str, nargs="?", default="map.map")
@@ -26,16 +26,18 @@ def load_image(name, color_key=None):
 
 
 pygame.init()
-screen_size = (400, 400)
+screen_size = [400, 400]
 screen = pygame.display.set_mode(screen_size)
 speed = 3
 FPS = 50
 
 tile_images = {
-    'wall': load_image('box.png'),
-    'empty': load_image('grass.png')
+    'wall': load_image('walls.jpg'),
+    'empty': load_image('grass.jpg')
 }
-player_image = load_image('mar.png')
+player_image = load_image('down.png')
+enemy_image = load_image('mar.png')
+bullet_image = load_image('dark_fireball.png')
 
 tile_width = tile_height = 50
 
@@ -50,7 +52,6 @@ class Tile(pygame.sprite.Sprite):
             tile_width * pos_x, tile_height * pos_y)
         self.abs_pos = (self.rect.x, self.rect.y)
 
-
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
         super().__init__(hero_group)
@@ -58,6 +59,22 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.image.get_rect().move(
             tile_width * pos_x + 15, tile_height * pos_y + 5)
         self.pos = (tile_width * pos_x + 15, tile_height * pos_y + 5)
+
+    def move(self, x, y):
+        camera.dx -= x - self.pos[0]
+        camera.dy -= y - self.pos[1]
+        self.pos = (x, y)
+        for sprite in sprite_group:
+            camera.apply(sprite)
+
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self, pos_x, pos_y):
+        super().__init__(sprite_group)
+        self.add(enemy_group)
+        self.image = enemy_image
+        self.rect = self.image.get_rect().move(
+            tile_width * pos_x + 15, tile_height * pos_y + 15)
+        self.abs_pos = (self.rect.x, self.rect.y)
 
     def move(self, x, y):
         camera.dx -= x - self.pos[0]
@@ -81,29 +98,34 @@ class Camera:
         self.dy = 0
 
 
-class Bullet:
-    def __init__(self, start_pos, finish_pos, life_count=5, bullet_speed=20):
+class Bullet(pygame.sprite.Sprite):
+    def __init__(self, start_pos, finish_pos, life_count=500, bullet_speed=10):
+        super().__init__(sprite_group)
+        self.start_x, self.start_y = start_pos
+        self.start_y += 5
+        self.abs_pos = [self.start_x, self.start_y]
+        self.image = bullet_image
+        self.rect = self.image.get_rect().move(
+            self.start_x, self.start_y)
         self.life_count = life_count
         self.finish_pos = finish_pos
         self.finish_x, self.finish_y = finish_pos
-        self.start_x, self.start_y = start_pos
+        self.finish_x += hero.pos[0]
+        self.finish_x -= screen_size[0] / 2 + 15
+        self.finish_y += hero.pos[1]
+        self.finish_y -= screen_size[1] / 2 + 5
         self.x_speed, self.y_speed = (self.finish_x - self.start_x) / bullet_speed, (self.finish_y - self.start_y) / bullet_speed
 
     def bullet_move(self):
-        if self.finish_x > self.start_x:
-            self.start_x += self.x_speed
-        elif self.finish_x < self.start_x:
-            self.start_x -= 1
-        if self.finish_y > self.start_y:
-            self.start_y += self.y_speed
-        elif self.finish_y < self.start_y:
-            self.start_y -= 1
-        circle_pos = (self.start_x, self.start_y)
-        pygame.draw.circle(screen, pygame.Color('red'), circle_pos, 2, 2)
-        if circle_pos == self.finish_pos:
-            self.life_count = 0
-        if self.finish_x < self.start_x + self.x_speed or self.finish_y < self.start_y + self.y_speed:
-            self.life_count = 0
+        self.abs_pos[0] += self.x_speed
+        self.abs_pos[1] += self.y_speed
+        if pygame.sprite.spritecollideany(self, walls):
+            self.kill()
+        for sprite in sprite_group:
+            camera.apply(sprite)
+        self.life_count -= 1
+        if self.life_count <= 0:
+            self.kill()
 
 
 
@@ -112,6 +134,7 @@ running = True
 clock = pygame.time.Clock()
 sprite_group = pygame.sprite.Group()
 hero_group = pygame.sprite.Group()
+enemy_group = pygame.sprite.Group()
 walls = pygame.sprite.Group()
 
 
@@ -121,16 +144,22 @@ def terminate():
 
 
 def start_screen():
-    intro_text = ["Перемещение героя", "",
+    intro_text = ["                       Dark fantasy", "",
                   "",
-                  "Камера"]
+                  "",
+                  "",
+                  "",
+                  "",
+                  "Сделали: Таласбаев Тимур",
+                  "Камысбаев Амир",
+                  "Новак Андрей"]
 
-    fon = pygame.transform.scale(load_image('fon.jpg'), screen_size)
+    fon = pygame.transform.scale(load_image('main_window.gif'), screen_size)
     screen.blit(fon, (0, 0))
     font = pygame.font.Font(None, 30)
     text_coord = 50
     for line in intro_text:
-        string_rendered = font.render(line, 1, pygame.Color('black'))
+        string_rendered = font.render(line, 1, pygame.Color('dark grey'))
         intro_rect = string_rendered.get_rect()
         text_coord += 10
         intro_rect.top = text_coord
@@ -151,14 +180,18 @@ def start_screen():
 
 def load_level(filename):
     filename = "maps/" + filename
+    level_map = list()
     with open(filename, 'r') as mapFile:
         level_map = [line.strip() for line in mapFile]
-    max_width = max(map(len, level_map))
-    return list(map(lambda x: list(x.ljust(max_width, '.')), level_map))
+    for i in range(len(level_map)):
+        level_map[i] = str(level_map[i])
+    max_width = len(level_map[0])
+    return level_map
 
 
 def generate_level(level):
     new_player, x, y = None, None, None
+    enemies = list()
     for y in range(len(level)):
         for x in range(len(level[y])):
             if level[y][x] == '.':
@@ -168,8 +201,16 @@ def generate_level(level):
             elif level[y][x] == '@':
                 Tile('empty', x, y)
                 new_player = Player(x, y)
-                level[y][x] = "."
-    return new_player, x, y
+                d = list(level[y])
+                d[x] = "."
+                level[y] = d
+            elif level[y][x] == '$':
+                Tile('empty', x, y)
+                enemies.append(Enemy(x, y))
+                d = list(level[y])
+                d[x] = "."
+                level[y] = d
+    return new_player, x, y, enemies
 
 def check(y1, x1):
     if level_map[y1 // tile_height][x1 // tile_width] == ".":
@@ -183,6 +224,7 @@ def move(hero, movement):
             if not pygame.sprite.spritecollideany(hero, walls):
                 hero.move(x, y - speed)
                 k = 0
+                hero.image = load_image('up.png')
                 while pygame.sprite.spritecollideany(hero, walls):
                     hero.move(x, y + k)
                     k += 1
@@ -192,6 +234,7 @@ def move(hero, movement):
             if not pygame.sprite.spritecollideany(hero, walls):
                 hero.move(x, y + speed)
                 k = 0
+                hero.image = load_image('down.png')
                 while pygame.sprite.spritecollideany(hero, walls):
                     hero.move(x, y - k)
                     k += 1
@@ -202,6 +245,7 @@ def move(hero, movement):
                 if not pygame.sprite.spritecollideany(hero, walls):
                     hero.move(x - speed, y)
                     k = 0
+                    hero.image = load_image('left.png')
                     while pygame.sprite.spritecollideany(hero, walls):
                         hero.move(x + k, y)
                         k += 1
@@ -211,16 +255,39 @@ def move(hero, movement):
             if not pygame.sprite.spritecollideany(hero, walls):
                 hero.move(x + speed, y)
                 k = 0
+                hero.image = load_image('right.png')
                 while pygame.sprite.spritecollideany(hero, walls):
                     hero.move(x - k, y)
                     k += 1
+
+levels = [[str(random.randint(0, 3)) for i in range(3)] for j in range(3)]
+level_map = load_level(map_file)
+for i in range(len(levels)):
+    for j in range(len(levels[0])):
+        map = load_level('map' + str(i) + str(j) + levels[i][j] + '.map')
+        for k in range(len(map)):
+            for t in range(len(map[0])):
+                if  i < 1 and j < 1:
+                    d = list(level_map[i * 8 + k])
+                    d[j * 8 + t] = map[k][t]
+                    level_map[i * 8 + k] = ''.join(d)
+                else:
+                    d = list(level_map[i * 8 + k + i * 4])
+                    rand = random.randint(0, 10)
+                    if rand == 10 and map[k][t] != '#':
+                        d[j * 8 + t + j * 4] = '$'
+                    else:
+                        d[j * 8 + t + j * 4] = map[k][t]
+                    level_map[i * 8 + k + i * 4] = ''.join(d)
+
+for i in level_map:
+    print(i)
 
 bullet_speed = 1
 
 start_screen()
 camera = Camera()
-level_map = load_level(map_file)
-hero, max_x, max_y = generate_level(level_map)
+hero, max_x, max_y, enemy_list = generate_level(level_map)
 camera.update(hero)
 up_flag = 0
 down_flag = 0
@@ -228,6 +295,9 @@ left_flag = 0
 right_flag = 0
 bullet_flag = 0
 bullets = []
+kol_bul = 30
+realoading = 0
+weapon_speed = 5
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -268,19 +338,34 @@ while running:
         move(hero, "left")
     if right_flag:
         move(hero, "right")
+
     if bullet_flag:
-        bullets.append(Bullet(hero.pos, mouse_pos))
+        if kol_bul > 0 and weapon_speed == 0:
+            bullets.append(Bullet(hero.pos, mouse_pos))
+            kol_bul -= 1
+            weapon_speed = 5
+        else:
+            realoading = 10
+        weapon_speed -= 1
+
+    if realoading == 0:
+        kol_bul = 30
+        realoading = 10
 
     screen.fill(pygame.Color("black"))
-    sprite_group.draw(screen)
-    hero_group.draw(screen)
     i = 0
     while i < len(bullets):
         bullets[i].bullet_move()
-        if bullets[i].life_count == 0:
+        if bullets[i].life_count < 0:
             del bullets[i]
             i -= 1
         i += 1
+    sprite_group.draw(screen)
+    hero_group.draw(screen)
+    enemy_group.draw(screen)
     clock.tick(FPS)
+    if kol_bul == 0:
+        realoading -= 1
+        weapon_speed = 5
     pygame.display.flip()
 pygame.quit()
