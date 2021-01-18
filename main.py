@@ -69,11 +69,23 @@ class Player(pygame.sprite.Sprite):
         for sprite in sprite_group:
             camera.apply(sprite)
 
-    def show_health(self):
+    def show_status(self):
         font = pygame.font.Font(None, 20)
-        text = font.render(str(self.health), True, pygame.Color('red'))
-        text_x = self.pos[0] + 5 + camera.dx
+        text = font.render(str(self.health) + ' HP', True, pygame.Color('red'))
+        text_x = self.pos[0] + camera.dx
         text_y = self.pos[1] - 10 + camera.dy
+        screen.blit(text, (text_x, text_y))
+
+        font = pygame.font.Font(None, 30)
+        text = font.render(str(kol_bul + all_bul) + ' MP', True, pygame.Color(100, 140, 255, 255))
+        text_x = 10
+        text_y = 370
+        screen.blit(text, (text_x, text_y))
+
+        font = pygame.font.Font(None, 30)
+        text = font.render(str(kol_bul) + '/' + '30' + ' AMMO', True, pygame.Color(255, 255, 255, 255))
+        text_x = 10
+        text_y = 340
         screen.blit(text, (text_x, text_y))
 
 
@@ -100,9 +112,9 @@ class Enemy(pygame.sprite.Sprite):
             self.kill()
             return True
         font = pygame.font.Font(None, 20)
-        text = font.render(str(self.health), True, pygame.Color('red'))
+        text = font.render(str(self.health) + ' HP', True, pygame.Color('red'))
         text_x = self.pos[0] + camera.dx
-        text_y = self.pos[1] - 5 + camera.dy
+        text_y = self.pos[1] - 10 + camera.dy
         screen.blit(text, (text_x, text_y))
         if pygame.sprite.spritecollideany(self, bullet_group):
             self.health -= 20
@@ -404,7 +416,7 @@ while running:
         i += 1
     sprite_group.draw(screen)
     hero_group.draw(screen)
-    hero.show_health()
+    hero.show_status()
     enemy_group.draw(screen)
     i = 0
     while i < len(enemy_list):
