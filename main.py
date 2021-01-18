@@ -237,7 +237,7 @@ def start_screen():
 
 def load_level(filename):
     filename = "maps/" + filename
-    level_map = li
+    level_map = []
     with open(filename, 'r') as mapFile:
         level_map = [line.strip() for line in mapFile]
     for i in range(len(level_map)):
@@ -340,9 +340,6 @@ for i in range(len(levels)):
                     else:
                         d[j * 8 + t + j * 4] = map[k][t]
                     level_map[i * 8 + k + i * 4] = ''.join(d)
-
-for i in level_map:
-    print(i)
 
 start_screen()
 camera = Camera()
