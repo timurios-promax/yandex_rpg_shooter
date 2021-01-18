@@ -34,7 +34,8 @@ FPS = 50
 
 tile_images = {
     'wall': load_image('walls.jpg'),
-    'empty': load_image('grass.jpg')
+    'empty': load_image('grass.jpg'),
+    'empty2': load_image('grass2.jpg')
 }
 player_image = load_image('down.png')
 enemy_image = load_image('down_light.png')
@@ -240,6 +241,8 @@ def generate_level(level):
         for x in range(len(level[y])):
             if level[y][x] == '.':
                 Tile('empty', x, y)
+            elif level[y][x] == '%':
+                Tile('empty2', x, y)
             elif level[y][x] == '#':
                 Tile('wall', x, y)
             elif level[y][x] == '@':
@@ -255,6 +258,7 @@ def generate_level(level):
                 d[x] = "."
                 level[y] = d
     return new_player, x, y, enemies
+
 
 def check(y1, x1):
     if level_map[y1 // tile_height][x1 // tile_width] == ".":
@@ -347,7 +351,7 @@ old_time = 0
 
 def reload():
     global all_bul, kol_bul, old_time
-    old_time = time.localtime().tm_sec + 1
+    old_time = time.localtime().tm_hour * 3600 + time.localtime().tm_min * 60 + time.localtime().tm_sec + 1
     some_bulls = min(30 - kol_bul, abs(all_bul - kol_bul))
     kol_bul += some_bulls
     if kol_bul != 0:
@@ -398,7 +402,7 @@ while running:
         move(hero, "right")
     if bullet_flag:
         if kol_bul > 0:
-            new_time = time.localtime().tm_sec
+            new_time = time.localtime().tm_hour * 3600 + time.localtime().tm_min * 60 + time.localtime().tm_sec
             if new_time - old_time > 0.3:
                 bullets.append(Bullet(hero.pos, mouse_pos))
                 kol_bul -= 1
