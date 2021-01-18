@@ -41,6 +41,9 @@ player_image = load_image('down.png')
 enemy_image = load_image('down_light.png')
 bullet_image = load_image('dark_fireball.png')
 
+bullet_sound = pygame.mixer.Sound(r'sounds\fireball.wav')
+enemy_damage_sound = pygame.mixer.Sound(r'sounds\enemydamage.wav')
+
 tile_width = tile_height = 50
 
 
@@ -140,6 +143,7 @@ class Bullet(pygame.sprite.Sprite):
     def __init__(self, start_pos, finish_pos, life_count=100, bullet_speed=10):
         super().__init__(sprite_group)
         self.add(bullet_group)
+        bullet_sound.play()
         self.start_x, self.start_y = start_pos
         self.start_y += 5
         self.abs_pos = [self.start_x, self.start_y]
