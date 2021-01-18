@@ -328,7 +328,7 @@ for i in range(len(levels)):
         map = load_level('map' + str(i) + str(j) + levels[i][j] + '.map')
         for k in range(len(map)):
             for t in range(len(map[0])):
-                if  i < 1 and j < 1:
+                if i < 1 and j < 1:
                     d = list(level_map[i * 8 + k])
                     d[j * 8 + t] = map[k][t]
                     level_map[i * 8 + k] = ''.join(d)
