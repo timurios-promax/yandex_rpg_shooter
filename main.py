@@ -416,6 +416,7 @@ while running:
             del enemy_list[i]
             i -= 1
         i += 1
+
     if len(enemy_list) == 0:
         pygame.quit()
 
