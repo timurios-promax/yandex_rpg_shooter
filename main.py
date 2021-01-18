@@ -29,18 +29,31 @@ def load_image(name, color_key=None):
 pygame.init()
 screen_size = [400, 400]
 screen = pygame.display.set_mode(screen_size)
-speed = 3
+speed = 4
+tile_width = tile_height = 50
+life_count = 25
+bullet_time = 15
+up_flag = 0
+down_flag = 0
+left_flag = 0
+right_flag = 0
+bullet_flag = 0
+bullets = []
+kol_bul = 30
+all_bul = 90
+weapon_speed = 5
+old_time = 0
 FPS = 50
+score = 0
 
 tile_images = {
     'wall': load_image('walls.jpg'),
-    'empty': load_image('grass.jpg')
+    'empty': load_image('grass.jpg'),
+    'empty2': load_image('grass2.jpg')
 }
 player_image = load_image('down.png')
 enemy_image = load_image('down_light.png')
 bullet_image = load_image('dark_fireball.png')
-
-tile_width = tile_height = 50
 
 
 class Tile(pygame.sprite.Sprite):
@@ -52,6 +65,7 @@ class Tile(pygame.sprite.Sprite):
         self.rect = self.image.get_rect().move(
             tile_width * pos_x, tile_height * pos_y)
         self.abs_pos = (self.rect.x, self.rect.y)
+
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
@@ -69,11 +83,29 @@ class Player(pygame.sprite.Sprite):
         for sprite in sprite_group:
             camera.apply(sprite)
 
-    def show_health(self):
+    def show_status(self):
         font = pygame.font.Font(None, 20)
-        text = font.render(str(self.health), True, pygame.Color('red'))
-        text_x = self.pos[0] + 5 + camera.dx
+        text = font.render(str(self.health) + ' HP', True, pygame.Color('red'))
+        text_x = self.pos[0] + camera.dx
         text_y = self.pos[1] - 10 + camera.dy
+        screen.blit(text, (text_x, text_y))
+
+        font = pygame.font.Font(None, 30)
+        text = font.render(str(kol_bul + all_bul) + ' MP', True, pygame.Color(100, 140, 255, 255))
+        text_x = 10
+        text_y = 370
+        screen.blit(text, (text_x, text_y))
+
+        font = pygame.font.Font(None, 30)
+        text = font.render(str(kol_bul) + '/' + '30' + ' AMMO', True, pygame.Color(255, 255, 255, 255))
+        text_x = 10
+        text_y = 340
+        screen.blit(text, (text_x, text_y))
+
+        font = pygame.font.Font(None, 30)
+        text = font.render(str(score).rjust(6, '0'), True, pygame.Color(255, 255, 255, 255))
+        text_x = 320
+        text_y = 10
         screen.blit(text, (text_x, text_y))
 
 
@@ -96,13 +128,15 @@ class Enemy(pygame.sprite.Sprite):
             camera.apply(sprite)
 
     def show_health(self):
+        global score
         if self.health <= 0:
+            score += 100
             self.kill()
             return True
         font = pygame.font.Font(None, 20)
-        text = font.render(str(self.health), True, pygame.Color('red'))
+        text = font.render(str(self.health) + ' HP', True, pygame.Color('red'))
         text_x = self.pos[0] + camera.dx
-        text_y = self.pos[1] - 5 + camera.dy
+        text_y = self.pos[1] - 10 + camera.dy
         screen.blit(text, (text_x, text_y))
         if pygame.sprite.spritecollideany(self, bullet_group):
             self.health -= 20
@@ -124,7 +158,7 @@ class Camera:
 
 
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self, start_pos, finish_pos, life_count=100, bullet_speed=10):
+    def __init__(self, start_pos, finish_pos, life_count=25, bullet_time=15):
         super().__init__(sprite_group)
         self.add(bullet_group)
         self.start_x, self.start_y = start_pos
@@ -140,7 +174,7 @@ class Bullet(pygame.sprite.Sprite):
         self.finish_x -= (50 * 3 + 15)
         self.finish_y += hero.pos[1]
         self.finish_y -= (50 * 3 + 5)
-        self.x_speed, self.y_speed = (self.finish_x - self.start_x) / bullet_speed, (self.finish_y - self.start_y) / bullet_speed
+        self.x_speed, self.y_speed = (self.finish_x - self.start_x) / bullet_time, (self.finish_y - self.start_y) / bullet_time
 
     def bullet_move(self):
         self.abs_pos[0] += self.x_speed
@@ -159,10 +193,10 @@ class Bullet(pygame.sprite.Sprite):
             return
 
 
-
 player = None
 running = True
 clock = pygame.time.Clock()
+
 sprite_group = pygame.sprite.Group()
 hero_group = pygame.sprite.Group()
 enemy_group = pygame.sprite.Group()
@@ -212,7 +246,7 @@ def start_screen():
 
 def load_level(filename):
     filename = "maps/" + filename
-    level_map = list()
+    level_map = []
     with open(filename, 'r') as mapFile:
         level_map = [line.strip() for line in mapFile]
     for i in range(len(level_map)):
@@ -228,6 +262,8 @@ def generate_level(level):
         for x in range(len(level[y])):
             if level[y][x] == '.':
                 Tile('empty', x, y)
+            elif level[y][x] == '%':
+                Tile('empty2', x, y)
             elif level[y][x] == '#':
                 Tile('wall', x, y)
             elif level[y][x] == '@':
@@ -243,6 +279,7 @@ def generate_level(level):
                 d[x] = "."
                 level[y] = d
     return new_player, x, y, enemies
+
 
 def check(y1, x1):
     if level_map[y1 // tile_height][x1 // tile_width] == ".":
@@ -292,6 +329,7 @@ def move(hero, movement):
                     hero.move(x - k, y)
                     k += 1
 
+
 levels = [[str(random.randint(0, 3)) for i in range(3)] for j in range(3)]
 level_map = load_level(map_file)
 for i in range(len(levels)):
@@ -299,7 +337,7 @@ for i in range(len(levels)):
         map = load_level('map' + str(i) + str(j) + levels[i][j] + '.map')
         for k in range(len(map)):
             for t in range(len(map[0])):
-                if  i < 1 and j < 1:
+                if i < 1 and j < 1:
                     d = list(level_map[i * 8 + k])
                     d[j * 8 + t] = map[k][t]
                     level_map[i * 8 + k] = ''.join(d)
@@ -312,25 +350,10 @@ for i in range(len(levels)):
                         d[j * 8 + t + j * 4] = map[k][t]
                     level_map[i * 8 + k + i * 4] = ''.join(d)
 
-for i in level_map:
-    print(i)
-
-bullet_speed = 1
-
 start_screen()
 camera = Camera()
 hero, max_x, max_y, enemy_list = generate_level(level_map)
 camera.update(hero)
-up_flag = 0
-down_flag = 0
-left_flag = 0
-right_flag = 0
-bullet_flag = 0
-bullets = []
-kol_bul = 30
-all_bul = 90
-weapon_speed = 5
-old_time = 0
 
 
 def reload():
@@ -347,24 +370,24 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_UP:
+            if event.key == pygame.K_w:
                 up_flag = 1
-            elif event.key == pygame.K_DOWN:
+            elif event.key == pygame.K_s:
                 down_flag = 1
-            elif event.key == pygame.K_LEFT:
+            elif event.key == pygame.K_a:
                 left_flag = 1
-            elif event.key == pygame.K_RIGHT:
+            elif event.key == pygame.K_d:
                 right_flag = 1
             if event.key == pygame.K_r:
                 reload()
         if event.type == pygame.KEYUP:
-            if event.key == pygame.K_UP:
+            if event.key == pygame.K_w:
                 up_flag = 0
-            if event.key == pygame.K_DOWN:
+            if event.key == pygame.K_s:
                 down_flag = 0
-            if event.key == pygame.K_LEFT:
+            if event.key == pygame.K_a:
                 left_flag = 0
-            if event.key == pygame.K_RIGHT:
+            if event.key == pygame.K_d:
                 right_flag = 0
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
@@ -388,7 +411,7 @@ while running:
         if kol_bul > 0:
             new_time = time.localtime().tm_hour * 3600 + time.localtime().tm_min * 60 + time.localtime().tm_sec
             if new_time - old_time > 0.3:
-                bullets.append(Bullet(hero.pos, mouse_pos))
+                bullets.append(Bullet(hero.pos, mouse_pos, life_count, bullet_time))
                 kol_bul -= 1
                 old_time = new_time
         else:
@@ -402,10 +425,12 @@ while running:
             del bullets[i]
             i -= 1
         i += 1
+
     sprite_group.draw(screen)
     hero_group.draw(screen)
-    hero.show_health()
+    hero.show_status()
     enemy_group.draw(screen)
+
     i = 0
     while i < len(enemy_list):
         k = enemy_list[i].show_health()
@@ -413,7 +438,6 @@ while running:
             del enemy_list[i]
             i -= 1
         i += 1
-
     if len(enemy_list) == 0:
         pygame.quit()
 
