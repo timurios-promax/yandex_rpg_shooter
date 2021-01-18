@@ -336,11 +336,10 @@ old_time = 0
 def reload():
     global all_bul, kol_bul, old_time
     old_time = time.localtime().tm_sec + 1
-    some_bulls = min(30 - kol_bul, all_bul - kol_bul)
-    kol_bul += min(30 - kol_bul, all_bul - kol_bul)
+    some_bulls = min(30 - kol_bul, abs(all_bul - kol_bul))
+    kol_bul += some_bulls
     if kol_bul != 0:
         all_bul -= some_bulls
-    print(kol_bul, all_bul)
 
 
 while running:
@@ -391,11 +390,9 @@ while running:
             if new_time - old_time > 0.3:
                 bullets.append(Bullet(hero.pos, mouse_pos))
                 kol_bul -= 1
-                print(kol_bul, all_bul)
                 old_time = new_time
         else:
             reload()
-            bullet_flag = 0
 
     screen.fill(pygame.Color("black"))
     i = 0
