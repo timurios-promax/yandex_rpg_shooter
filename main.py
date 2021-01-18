@@ -29,22 +29,36 @@ def load_image(name, color_key=None):
 pygame.init()
 screen_size = [400, 400]
 screen = pygame.display.set_mode(screen_size)
-speed = 3
+pygame.display.set_caption('Dark Fantasy')
+speed = 4
+ammo = 30
+mana = 120
+tile_width = tile_height = 50
+life_count = 25
+bullet_time = 15
+up_flag = 0
+down_flag = 0
+left_flag = 0
+right_flag = 0
+bullet_flag = 0
+bullets = []
+kol_bul = 30
+all_bul = 90
+weapon_speed = 5
+old_time = 0
 FPS = 50
+radius = 200
 
 tile_images = {
     'wall': load_image('walls.jpg'),
     'empty': load_image('grass.jpg'),
     'empty2': load_image('grass2.jpg')
 }
+icon = load_image('icon.jpg')
+pygame.display.set_icon(icon)
 player_image = load_image('down.png')
 enemy_image = load_image('down_light.png')
 bullet_image = load_image('dark_fireball.png')
-
-bullet_sound = pygame.mixer.Sound(r'sounds\fireball.wav')
-enemy_damage_sound = pygame.mixer.Sound(r'sounds\enemydamage.wav')
-
-tile_width = tile_height = 50
 
 
 class Tile(pygame.sprite.Sprite):
@@ -56,6 +70,7 @@ class Tile(pygame.sprite.Sprite):
         self.rect = self.image.get_rect().move(
             tile_width * pos_x, tile_height * pos_y)
         self.abs_pos = (self.rect.x, self.rect.y)
+
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
@@ -81,13 +96,13 @@ class Player(pygame.sprite.Sprite):
         screen.blit(text, (text_x, text_y))
 
         font = pygame.font.Font(None, 30)
-        text = font.render(str(kol_bul + all_bul) + ' MP', True, pygame.Color(100, 140, 255, 255))
+        text = font.render(str(kol_bul + all_bul) + '/' + str(mana) + ' MP', True, pygame.Color(100, 140, 255, 255))
         text_x = 10
         text_y = 370
         screen.blit(text, (text_x, text_y))
 
         font = pygame.font.Font(None, 30)
-        text = font.render(str(kol_bul) + '/' + '30' + ' AMMO', True, pygame.Color(255, 255, 255, 255))
+        text = font.render(str(kol_bul) + '/' + str(ammo) + ' AMMO', True, pygame.Color(255, 255, 255, 255))
         text_x = 10
         text_y = 340
         screen.blit(text, (text_x, text_y))
@@ -140,10 +155,9 @@ class Camera:
 
 
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self, start_pos, finish_pos, life_count=100, bullet_speed=10):
+    def __init__(self, start_pos, finish_pos, life_count=25, bullet_time=15):
         super().__init__(sprite_group)
         self.add(bullet_group)
-        bullet_sound.play()
         self.start_x, self.start_y = start_pos
         self.start_y += 5
         self.abs_pos = [self.start_x, self.start_y]
@@ -157,7 +171,7 @@ class Bullet(pygame.sprite.Sprite):
         self.finish_x -= (50 * 3 + 15)
         self.finish_y += hero.pos[1]
         self.finish_y -= (50 * 3 + 5)
-        self.x_speed, self.y_speed = (self.finish_x - self.start_x) / bullet_speed, (self.finish_y - self.start_y) / bullet_speed
+        self.x_speed, self.y_speed = (self.finish_x - self.start_x) / bullet_time, (self.finish_y - self.start_y) / bullet_time
 
     def bullet_move(self):
         self.abs_pos[0] += self.x_speed
@@ -176,15 +190,53 @@ class Bullet(pygame.sprite.Sprite):
             return
 
 
+class EnemyBullet(pygame.sprite.Sprite):
+    def __init__(self, start_pos, finish_pos, life_count=25, bullet_time=15):
+        super().__init__(sprite_group)
+        self.add(enemy_bullet_group)
+        self.start_x, self.start_y = start_pos
+        self.start_y += 5
+        self.abs_pos = [self.start_x, self.start_y]
+        self.image = bullet_image
+        self.rect = self.image.get_rect().move(
+            self.start_x, self.start_y)
+        self.life_count = life_count
+        self.finish_pos = finish_pos
+        self.finish_x, self.finish_y = finish_pos
+        self.finish_x += hero.pos[0]
+        self.finish_x -= (50 * 3 + 15)
+        self.finish_y += hero.pos[1]
+        self.finish_y -= (50 * 3 + 5)
+        self.x_speed, self.y_speed = (self.finish_x - self.start_x) / bullet_time, (self.finish_y - self.start_y) / bullet_time
+
+    def bullet_move(self):
+        self.abs_pos[0] += self.x_speed
+        self.abs_pos[1] += self.y_speed
+        if pygame.sprite.spritecollideany(self, walls):
+            self.kill()
+            return
+        if pygame.sprite.spritecollideany(self, hero_group):
+            hero.health -= 20
+            self.kill()
+            return
+        for sprite in sprite_group:
+            camera.apply(sprite)
+        self.life_count -= 1
+        if self.life_count <= 0:
+            self.kill()
+            return
+
 
 player = None
 running = True
 clock = pygame.time.Clock()
+
 sprite_group = pygame.sprite.Group()
 hero_group = pygame.sprite.Group()
 enemy_group = pygame.sprite.Group()
 walls = pygame.sprite.Group()
 bullet_group = pygame.sprite.Group()
+enemy_bullet_group = pygame.sprite.Group()
 
 
 def terminate():
@@ -219,7 +271,8 @@ def start_screen():
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                terminate()
+                pygame.quit()
+                exit()
             elif event.type == pygame.KEYDOWN or \
                     event.type == pygame.MOUSEBUTTONDOWN:
                 return
@@ -227,9 +280,40 @@ def start_screen():
         clock.tick(FPS)
 
 
+def end_screen():
+    intro_text = ["                       Вы проиграли", ""]
+
+    fon = pygame.transform.scale(load_image('main_window.gif'), screen_size)
+    screen.blit(fon, (0, 0))
+    font = pygame.font.Font(None, 30)
+    text_coord = 50
+    for line in intro_text:
+        string_rendered = font.render(line, 1, pygame.Color('dark grey'))
+        intro_rect = string_rendered.get_rect()
+        text_coord += 10
+        intro_rect.top = text_coord
+        intro_rect.x = 10
+        text_coord += intro_rect.height
+        screen.blit(string_rendered, intro_rect)
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            elif event.type == pygame.KEYDOWN or \
+                    event.type == pygame.MOUSEBUTTONDOWN:
+                terminate()
+                os.system('python main.py')
+                return
+        pygame.display.flip()
+        clock.tick(FPS)
+
+
+
 def load_level(filename):
     filename = "maps/" + filename
-    level_map = list()
+    level_map = []
     with open(filename, 'r') as mapFile:
         level_map = [line.strip() for line in mapFile]
     for i in range(len(level_map)):
@@ -312,6 +396,7 @@ def move(hero, movement):
                     hero.move(x - k, y)
                     k += 1
 
+
 levels = [[str(random.randint(0, 3)) for i in range(3)] for j in range(3)]
 level_map = load_level(map_file)
 for i in range(len(levels)):
@@ -319,7 +404,7 @@ for i in range(len(levels)):
         map = load_level('map' + str(i) + str(j) + levels[i][j] + '.map')
         for k in range(len(map)):
             for t in range(len(map[0])):
-                if  i < 1 and j < 1:
+                if i < 1 and j < 1:
                     d = list(level_map[i * 8 + k])
                     d[j * 8 + t] = map[k][t]
                     level_map[i * 8 + k] = ''.join(d)
@@ -332,25 +417,10 @@ for i in range(len(levels)):
                         d[j * 8 + t + j * 4] = map[k][t]
                     level_map[i * 8 + k + i * 4] = ''.join(d)
 
-for i in level_map:
-    print(i)
-
-bullet_speed = 1
-
 start_screen()
 camera = Camera()
 hero, max_x, max_y, enemy_list = generate_level(level_map)
 camera.update(hero)
-up_flag = 0
-down_flag = 0
-left_flag = 0
-right_flag = 0
-bullet_flag = 0
-bullets = []
-kol_bul = 30
-all_bul = 90
-weapon_speed = 5
-old_time = 0
 
 
 def reload():
@@ -365,26 +435,27 @@ def reload():
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            running = False
+            pygame.quit()
+            exit()
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_UP:
+            if event.key == pygame.K_w:
                 up_flag = 1
-            elif event.key == pygame.K_DOWN:
+            elif event.key == pygame.K_s:
                 down_flag = 1
-            elif event.key == pygame.K_LEFT:
+            elif event.key == pygame.K_a:
                 left_flag = 1
-            elif event.key == pygame.K_RIGHT:
+            elif event.key == pygame.K_d:
                 right_flag = 1
             if event.key == pygame.K_r:
                 reload()
         if event.type == pygame.KEYUP:
-            if event.key == pygame.K_UP:
+            if event.key == pygame.K_w:
                 up_flag = 0
-            if event.key == pygame.K_DOWN:
+            if event.key == pygame.K_s:
                 down_flag = 0
-            if event.key == pygame.K_LEFT:
+            if event.key == pygame.K_a:
                 left_flag = 0
-            if event.key == pygame.K_RIGHT:
+            if event.key == pygame.K_d:
                 right_flag = 0
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
@@ -408,7 +479,7 @@ while running:
         if kol_bul > 0:
             new_time = time.localtime().tm_hour * 3600 + time.localtime().tm_min * 60 + time.localtime().tm_sec
             if new_time - old_time > 0.3:
-                bullets.append(Bullet(hero.pos, mouse_pos))
+                bullets.append(Bullet(hero.pos, mouse_pos, life_count, bullet_time))
                 kol_bul -= 1
                 old_time = new_time
         else:
@@ -422,10 +493,16 @@ while running:
             del bullets[i]
             i -= 1
         i += 1
+
     sprite_group.draw(screen)
     hero_group.draw(screen)
     hero.show_status()
     enemy_group.draw(screen)
+    for enemy in enemy_list:
+        if enemy.pos[0] - radius < hero.pos[0] and enemy.pos[0] + radius > hero.pos[0]:
+            if enemy.pos[1] - radius < hero.pos[1] and enemy.pos[1] + radius > hero.pos[1]:
+                bullets.append(EnemyBullet(enemy.pos, hero.pos, life_count, bullet_time))
+
     i = 0
     while i < len(enemy_list):
         k = enemy_list[i].show_health()
@@ -433,9 +510,11 @@ while running:
             del enemy_list[i]
             i -= 1
         i += 1
-
     if len(enemy_list) == 0:
         pygame.quit()
+
+    if hero.health <= 0:
+        end_screen()
 
     clock.tick(30)
     pygame.display.flip()
