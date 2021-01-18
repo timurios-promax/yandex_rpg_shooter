@@ -102,6 +102,7 @@ class Bullet(pygame.sprite.Sprite):
     def __init__(self, start_pos, finish_pos, life_count=500, bullet_speed=10):
         super().__init__(sprite_group)
         self.start_x, self.start_y = start_pos
+        self.start_y += 5
         self.abs_pos = [self.start_x, self.start_y]
         self.image = bullet_image
         self.rect = self.image.get_rect().move(
