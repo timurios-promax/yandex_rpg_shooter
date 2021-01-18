@@ -3,6 +3,7 @@ import os
 import sys
 import argparse
 import random
+import time
 
 parser = argparse.ArgumentParser()
 parser.add_argument("map", type=str, nargs="?", default="map.map")
@@ -71,8 +72,8 @@ class Player(pygame.sprite.Sprite):
     def show_health(self):
         font = pygame.font.Font(None, 20)
         text = font.render(str(self.health), True, pygame.Color('red'))
-        text_x = self.pos[0] + camera.dx
-        text_y = self.pos[1] - 5 + camera.dy
+        text_x = self.pos[0] + 5 + camera.dx
+        text_y = self.pos[1] - 10 + camera.dy
         screen.blit(text, (text_x, text_y))
 
 
@@ -327,8 +328,21 @@ right_flag = 0
 bullet_flag = 0
 bullets = []
 kol_bul = 30
-realoading = 0
+all_bul = 90
 weapon_speed = 5
+old_time = 0
+
+
+def reload():
+    global all_bul, kol_bul, old_time
+    old_time = time.localtime().tm_sec + 1
+    some_bulls = min(30 - kol_bul, all_bul - kol_bul)
+    kol_bul += min(30 - kol_bul, all_bul - kol_bul)
+    if kol_bul != 0:
+        all_bul -= some_bulls
+    print(kol_bul, all_bul)
+
+
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -342,6 +356,8 @@ while running:
                 left_flag = 1
             elif event.key == pygame.K_RIGHT:
                 right_flag = 1
+            if event.key == pygame.K_r:
+                reload()
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_UP:
                 up_flag = 0
@@ -369,19 +385,17 @@ while running:
         move(hero, "left")
     if right_flag:
         move(hero, "right")
-
     if bullet_flag:
-        if kol_bul > 0 and weapon_speed == 0:
-            bullets.append(Bullet(hero.pos, mouse_pos))
-            kol_bul -= 1
-            weapon_speed = 5
+        if kol_bul > 0:
+            new_time = time.localtime().tm_sec
+            if new_time - old_time > 0.3:
+                bullets.append(Bullet(hero.pos, mouse_pos))
+                kol_bul -= 1
+                print(kol_bul, all_bul)
+                old_time = new_time
         else:
-            realoading = 10
-        weapon_speed -= 1
-
-    if realoading == 0:
-        kol_bul = 30
-        realoading = 10
+            reload()
+            bullet_flag = 0
 
     screen.fill(pygame.Color("black"))
     i = 0
@@ -400,17 +414,11 @@ while running:
         k = enemy_list[i].show_health()
         if k:
             del enemy_list[i]
-    for i in range(len(enemy_list)):
-        k = enemy_list[i].show_health()
-        if k:
-            del enemy_list[i]
             i -= 1
         i += 1
     if len(enemy_list) == 0:
         pygame.quit()
+
     clock.tick(30)
-    if kol_bul == 0:
-        realoading -= 1
-        weapon_speed = 5
     pygame.display.flip()
 pygame.quit()
