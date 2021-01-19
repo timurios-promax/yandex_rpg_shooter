@@ -76,7 +76,7 @@ coin_image = load_image('coin.png')
 
 # loading sounds
 bullet_sound = pygame.mixer.Sound(r'sounds\fireball.wav')
-enemy_damge_sound = pygame.mixer.Sound(r'sounds\enemydamage.wav')
+enemy_damage_sound = pygame.mixer.Sound(r'sounds\enemydamage.wav')
 pygame.mixer.music.load(r'sounds\fonmusic.wav')
 pygame.mixer.music.play()
 pygame.mixer.music.set_volume(0.3)
@@ -203,7 +203,7 @@ class Enemy(pygame.sprite.Sprite):
 
         if pygame.sprite.spritecollideany(self, bullet_group):
             # playing taking damage's sound
-            enemy_damge_sound.play()
+            enemy_damage_sound.play()
             self.health -= 20
         return False
 
