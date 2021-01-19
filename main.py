@@ -79,7 +79,7 @@ pygame.mixer.music.play()
 pygame.mixer.music.set_volume(0.3)
 step_sound = [pygame.mixer.Sound(r'sounds\step' + str(i) + '.wav') for i in range(1, 10)]
 coin_sound = pygame.mixer.Sound(r'sounds\coin.wav')
-enemy_bullet_sound = pygame.mixer.Sound(r'sounds\electric.wav')
+enemy_bullet_sound = pygame.mixer.Sound(r'sounds\burst.wav')
 damage_sound = pygame.mixer.Sound(r'sounds\herodamage.wav')
 
 
@@ -175,6 +175,8 @@ class Enemy(pygame.sprite.Sprite):
             tile_width * pos_x + 15, tile_height * pos_y + 15)
         self.abs_pos = (self.rect.x, self.rect.y)
         self.pos = (tile_width * pos_x + 15, tile_height * pos_y + 5)
+        self.new_time = 0
+        self.old_time = 0
 
     def move(self, x, y):
         camera.dx -= x - self.pos[0]
@@ -197,7 +199,7 @@ class Enemy(pygame.sprite.Sprite):
         screen.blit(text, (text_x, text_y))
 
         if pygame.sprite.spritecollideany(self, bullet_group):
-            # playing enemy bullet's sound
+            # playing taking damage's sound
             enemy_damge_sound.play()
             self.health -= 20
         return False
@@ -265,6 +267,7 @@ class EnemyBullet(pygame.sprite.Sprite):
     def __init__(self, start_pos, finish_pos, life_count=25, bullet_time=15):
         super().__init__(sprite_group)
         self.add(enemy_bullet_group)
+        enemy_bullet_sound.play()
         self.start_x, self.start_y = start_pos
         self.start_y += 5
         self.abs_pos = [self.start_x, self.start_y]
@@ -282,16 +285,17 @@ class EnemyBullet(pygame.sprite.Sprite):
         if pygame.sprite.spritecollideany(self, walls):
             self.kill()
             return
-        if pygame.sprite.spritecollideany(self, hero_group):
-            damage_sound.play()
-            hero.health -= 20
-            self.kill()
-            return
         for sprite in sprite_group:
             camera.apply(sprite)
         self.life_count -= 1
         if self.life_count <= 0:
             self.kill()
+            return
+        if pygame.sprite.spritecollideany(self, hero_group) and self.life_count > 0:
+            damage_sound.play()
+            hero.health -= 20
+            self.kill()
+            self.life_count = 0
             return
 
 
@@ -353,7 +357,11 @@ def start_screen():
 
 # end screen
 def end_screen():
-    intro_text = ["                       Вы проиграли", ""]
+    global score
+    intro_text = ["                       Вы проиграли",
+                  "",
+                  "",
+                  "Заработано: ", str(score), ' очков']
 
     fon = pygame.transform.scale(load_image('main_window.gif'), screen_size)
     screen.blit(fon, (0, 0))
@@ -608,7 +616,10 @@ while running:
     # wrong, enemy's shooting
     for enemy in enemy_list:
         if ((hero.pos[0] - enemy.pos[0]) ** 2 + (hero.pos[1] - enemy.pos[1]) ** 2) ** 0.5 <= radius:
-            bullets.append(EnemyBullet(enemy.pos, hero.pos, enemy_life_count, enemy_bullet_time))
+            enemy.new_time = time.localtime().tm_hour * 3600 + time.localtime().tm_min * 60 + time.localtime().tm_sec
+            if enemy.new_time - enemy.old_time > 0.8:
+                bullets.append(EnemyBullet(enemy.pos, hero.pos, enemy_life_count, enemy_bullet_time))
+                enemy.old_time = enemy.new_time
 
     if len(enemy_list) == 0 or hero.health <= 0:
         end_screen()
