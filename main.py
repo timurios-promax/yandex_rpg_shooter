@@ -1,3 +1,6 @@
+from datetime import datetime
+import sqlite3
+
 import pygame
 import os
 import sys
@@ -358,10 +361,17 @@ def start_screen():
 # end screen
 def end_screen():
     global score
+    con = sqlite3.connect('records.db')
+    cur = con.cursor()
+    current_datetime = datetime.now()
+    datee = str(current_datetime)
+    cur.execute(f"INSERT INTO records (date, score) VALUES ('{datee}', {score})")
+    con.commit()
+    con.close()
     intro_text = ["                       Вы проиграли",
                   "",
                   "",
-                  "Заработано: ", str(score), ' очков']
+                  "Заработано: " + str(score) + ' очков']
 
     fon = pygame.transform.scale(load_image('main_window.gif'), screen_size)
     screen.blit(fon, (0, 0))
