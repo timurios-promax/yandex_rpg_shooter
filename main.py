@@ -35,7 +35,9 @@ speed = 4
 ammo = 30
 mana = 120
 tile_width = tile_height = 50
-life_count = 25
+life_count = 40
+enemy_life_count = 80
+enemy_bullet_time = 50
 bullet_time = 15
 up_flag = 0
 down_flag = 0
@@ -109,7 +111,6 @@ class Player(pygame.sprite.Sprite):
         self.pos = (x, y)
         for sprite in sprite_group:
             camera.apply(sprite)
-        print(self.rect.x, self.rect.y)
 
     def show_status(self):
         # showing HP
@@ -264,7 +265,6 @@ class EnemyBullet(pygame.sprite.Sprite):
     def __init__(self, start_pos, finish_pos, life_count=25, bullet_time=15):
         super().__init__(sprite_group)
         self.add(enemy_bullet_group)
-        enemy_bullet_sound.play()
         self.start_x, self.start_y = start_pos
         self.start_y += 5
         self.abs_pos = [self.start_x, self.start_y]
@@ -274,10 +274,6 @@ class EnemyBullet(pygame.sprite.Sprite):
         self.life_count = life_count
         self.finish_pos = finish_pos
         self.finish_x, self.finish_y = finish_pos
-        self.finish_x += enemy.pos[0]
-        self.finish_x -= (50 * 3 + 15)
-        self.finish_y += enemy.pos[1]
-        self.finish_y -= (50 * 3 + 5)
         self.x_speed, self.y_speed = (self.finish_x - self.start_x) / bullet_time, (self.finish_y - self.start_y) / bullet_time
 
     def bullet_move(self):
@@ -612,7 +608,7 @@ while running:
     # wrong, enemy's shooting
     for enemy in enemy_list:
         if ((hero.pos[0] - enemy.pos[0]) ** 2 + (hero.pos[1] - enemy.pos[1]) ** 2) ** 0.5 <= radius:
-            bullets.append(EnemyBullet(enemy.pos, hero.pos, life_count, bullet_time))
+            bullets.append(EnemyBullet(enemy.pos, hero.pos, enemy_life_count, enemy_bullet_time))
 
     if len(enemy_list) == 0 or hero.health <= 0:
         end_screen()
