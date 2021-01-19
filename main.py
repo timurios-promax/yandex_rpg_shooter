@@ -26,6 +26,7 @@ def load_image(name, color_key=None):
     return image
 
 
+# initialising pygame, writing basement parameters
 pygame.init()
 screen_size = [400, 400]
 screen = pygame.display.set_mode(screen_size)
@@ -52,11 +53,14 @@ coins = list()
 step_state = 0
 score = 0
 
+# background, walls textures
 tile_images = {
     'wall': load_image('walls.jpg'),
     'empty': load_image('grass.jpg'),
     'empty2': load_image('grass2.jpg')
 }
+
+# loading window icon, player's images, player's bullet texture, enemy's bullet texture, coin's image
 icon = load_image('icon.jpg')
 pygame.display.set_icon(icon)
 player_image = load_image('down.png')
@@ -65,6 +69,7 @@ bullet_image = load_image('dark_fireball.png')
 enemy_bullet_image = load_image('light_blast.png')
 coin_image = load_image('coin.png')
 
+# loading sounds
 bullet_sound = pygame.mixer.Sound(r'sounds\fireball.wav')
 enemy_damge_sound = pygame.mixer.Sound(r'sounds\enemydamage.wav')
 pygame.mixer.music.load(r'sounds\fonmusic.wav')
@@ -75,6 +80,8 @@ coin_sound = pygame.mixer.Sound(r'sounds\coin.wav')
 enemy_bullet_sound = pygame.mixer.Sound(r'sounds\electric.wav')
 damage_sound = pygame.mixer.Sound(r'sounds\herodamage.wav')
 
+
+# Tile class for walls and background
 class Tile(pygame.sprite.Sprite):
     def __init__(self, tile_type, pos_x, pos_y):
         super().__init__(sprite_group)
@@ -86,6 +93,7 @@ class Tile(pygame.sprite.Sprite):
         self.abs_pos = (self.rect.x, self.rect.y)
 
 
+# Player's (Hero's) class
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
         super().__init__(hero_group)
@@ -101,26 +109,31 @@ class Player(pygame.sprite.Sprite):
         self.pos = (x, y)
         for sprite in sprite_group:
             camera.apply(sprite)
+        print(self.rect.x, self.rect.y)
 
     def show_status(self):
+        # showing HP
         font = pygame.font.Font(None, 20)
         text = font.render(str(self.health) + ' HP', True, pygame.Color('red'))
         text_x = self.pos[0] + camera.dx
         text_y = self.pos[1] - 10 + camera.dy
         screen.blit(text, (text_x, text_y))
 
+        # showing Mana Points
         font = pygame.font.Font(None, 30)
         text = font.render(str(kol_bul + all_bul) + '/' + str(mana) + ' MP', True, pygame.Color(100, 140, 255, 255))
         text_x = 10
         text_y = 370
         screen.blit(text, (text_x, text_y))
 
+        # showing current ammo
         font = pygame.font.Font(None, 30)
         text = font.render(str(kol_bul) + '/' + str(ammo) + ' AMMO', True, pygame.Color(255, 255, 255, 255))
         text_x = 10
         text_y = 340
         screen.blit(text, (text_x, text_y))
 
+        # showing score
         font = pygame.font.Font(None, 30)
         text = font.render(str(score).rjust(6, '0'), True, pygame.Color(255, 255, 255, 255))
         text_x = 320
@@ -128,6 +141,7 @@ class Player(pygame.sprite.Sprite):
         screen.blit(text, (text_x, text_y))
 
 
+# Coin's class
 class Coin(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
         super().__init__(sprite_group)
@@ -149,6 +163,7 @@ class Coin(pygame.sprite.Sprite):
         return False
 
 
+# Enemy's class
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y):
         super().__init__(sprite_group)
@@ -173,17 +188,21 @@ class Enemy(pygame.sprite.Sprite):
             score += 100
             self.kill()
             return True
+        # showing enemy's hp
         font = pygame.font.Font(None, 20)
         text = font.render(str(self.health) + ' HP', True, pygame.Color('red'))
         text_x = self.pos[0] + camera.dx
         text_y = self.pos[1] - 10 + camera.dy
         screen.blit(text, (text_x, text_y))
+
         if pygame.sprite.spritecollideany(self, bullet_group):
+            # playing enemy bullet's sound
             enemy_damge_sound.play()
             self.health -= 20
         return False
 
 
+# Camera class
 class Camera:
     def __init__(self):
         self.dx = 0
@@ -198,6 +217,7 @@ class Camera:
         self.dy = 0
 
 
+# Hero's bullet class
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, start_pos, finish_pos, life_count=25, bullet_time=15):
         super().__init__(sprite_group)
@@ -221,22 +241,27 @@ class Bullet(pygame.sprite.Sprite):
     def bullet_move(self):
         self.abs_pos[0] += self.x_speed
         self.abs_pos[1] += self.y_speed
+        # colliding with walls
         if pygame.sprite.spritecollideany(self, walls):
             self.kill()
             return
+        # colliding with enemy
         if pygame.sprite.spritecollideany(self, enemy_group):
             self.kill()
             return
         for sprite in sprite_group:
+            # applying bullet's movement to camera
             camera.apply(sprite)
         self.life_count -= 1
         if self.life_count <= 0:
+            # killing bullet if it's life count (time of working) = 0
             self.kill()
             return
 
 
+# Enemy bullet's class
 class EnemyBullet(pygame.sprite.Sprite):
-    def __init__(self, start_pos, finish_pos, enemy, life_count=25, bullet_time=15):
+    def __init__(self, start_pos, finish_pos, life_count=25, bullet_time=15):
         super().__init__(sprite_group)
         self.add(enemy_bullet_group)
         enemy_bullet_sound.play()
@@ -278,6 +303,7 @@ player = None
 running = True
 clock = pygame.time.Clock()
 
+# creating sprite groups
 sprite_group = pygame.sprite.Group()
 hero_group = pygame.sprite.Group()
 enemy_group = pygame.sprite.Group()
@@ -292,6 +318,7 @@ def terminate():
     sys.exit
 
 
+# start screen
 def start_screen():
     intro_text = ["                       Dark fantasy", "",
                   "",
@@ -328,6 +355,7 @@ def start_screen():
         clock.tick(FPS)
 
 
+# end screen
 def end_screen():
     intro_text = ["                       Вы проиграли", ""]
 
@@ -358,6 +386,7 @@ def end_screen():
         clock.tick(FPS)
 
 
+# level loading from map
 def load_level(filename):
     filename = "maps/" + filename
     with open(filename, 'r') as mapFile:
@@ -367,6 +396,7 @@ def load_level(filename):
     return level_map
 
 
+# level generating
 def generate_level(level):
     new_player, x, y = None, None, None
     enemies = list()
@@ -405,6 +435,7 @@ def check(y1, x1):
         return True
 
 
+# hero's movement
 def move(hero, movement):
     global step_state
     x, y = hero.pos
@@ -452,6 +483,7 @@ def move(hero, movement):
                     k += 1
 
 
+# random level generating
 levels = [[str(random.randint(0, 3)) for i in range(3)] for j in range(3)]
 level_map = load_level(map_file)
 for i in range(len(levels)):
@@ -480,6 +512,7 @@ hero, max_x, max_y, enemy_list = generate_level(level_map)
 camera.update(hero)
 
 
+# bullet's reloading
 def reload():
     global all_bul, kol_bul, old_time
     old_time = time.localtime().tm_hour * 3600 + time.localtime().tm_min * 60 + time.localtime().tm_sec + 1
@@ -533,6 +566,7 @@ while running:
     if right_flag:
         move(hero, "right")
     if bullet_flag:
+        # reloading and shooting code
         if kol_bul > 0:
             new_time = time.localtime().tm_hour * 3600 + time.localtime().tm_min * 60 + time.localtime().tm_sec
             if new_time - old_time > 0.3:
@@ -545,33 +579,40 @@ while running:
     screen.fill(pygame.Color("black"))
     i = 0
     while i < len(bullets):
+        # moving bullets
         bullets[i].bullet_move()
         if bullets[i].life_count < 0:
             del bullets[i]
             i -= 1
         i += 1
     i = 0
-    while i < len(enemy_list):
-        k = enemy_list[i].show_health()
-        if k:
-            del enemy_list[i]
-            i -= 1
-        i += 1
-    i = 0
     while i < len(coins):
+        # taking coins
         k = coins[i].taken()
         if k:
             del coins[i]
             i -= 1
         i += 1
 
+    # drawing sprite groups
     sprite_group.draw(screen)
     hero_group.draw(screen)
     hero.show_status()
     enemy_group.draw(screen)
+
+    i = 0
+    while i < len(enemy_list):
+        # showing enemy's health or killing them
+        k = enemy_list[i].show_health()
+        if k:
+            del enemy_list[i]
+            i -= 1
+        i += 1
+
+    # wrong, enemy's shooting
     for enemy in enemy_list:
         if ((hero.pos[0] - enemy.pos[0]) ** 2 + (hero.pos[1] - enemy.pos[1]) ** 2) ** 0.5 <= radius:
-            bullets.append(EnemyBullet(enemy.pos, hero.pos, enemy, life_count, bullet_time))
+            bullets.append(EnemyBullet(enemy.pos, hero.pos, life_count, bullet_time))
 
     if len(enemy_list) == 0 or hero.health <= 0:
         end_screen()
