@@ -267,6 +267,7 @@ class EnemyBullet(pygame.sprite.Sprite):
     def __init__(self, start_pos, finish_pos, life_count=25, bullet_time=15):
         super().__init__(sprite_group)
         self.add(enemy_bullet_group)
+        enemy_bullet_sound.play()
         self.start_x, self.start_y = start_pos
         self.start_y += 5
         self.abs_pos = [self.start_x, self.start_y]
@@ -284,16 +285,17 @@ class EnemyBullet(pygame.sprite.Sprite):
         if pygame.sprite.spritecollideany(self, walls):
             self.kill()
             return
-        if pygame.sprite.spritecollideany(self, hero_group):
-            damage_sound.play()
-            hero.health -= 20
-            self.kill()
-            return
         for sprite in sprite_group:
             camera.apply(sprite)
         self.life_count -= 1
         if self.life_count <= 0:
             self.kill()
+            return
+        if pygame.sprite.spritecollideany(self, hero_group) and self.life_count > 0:
+            damage_sound.play()
+            hero.health -= 20
+            self.kill()
+            self.life_count = 0
             return
 
 
