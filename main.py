@@ -79,7 +79,7 @@ pygame.mixer.music.play()
 pygame.mixer.music.set_volume(0.3)
 step_sound = [pygame.mixer.Sound(r'sounds\step' + str(i) + '.wav') for i in range(1, 10)]
 coin_sound = pygame.mixer.Sound(r'sounds\coin.wav')
-enemy_bullet_sound = pygame.mixer.Sound(r'sounds\electric.wav')
+enemy_bullet_sound = pygame.mixer.Sound(r'sounds\burst.wav')
 damage_sound = pygame.mixer.Sound(r'sounds\herodamage.wav')
 
 
@@ -357,7 +357,11 @@ def start_screen():
 
 # end screen
 def end_screen():
-    intro_text = ["                       Вы проиграли", ""]
+    global score
+    intro_text = ["                       Вы проиграли",
+                  "",
+                  "",
+                  "Заработано: ", str(score), ' очков']
 
     fon = pygame.transform.scale(load_image('main_window.gif'), screen_size)
     screen.blit(fon, (0, 0))
